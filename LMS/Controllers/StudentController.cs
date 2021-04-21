@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using LMS.Models.LMSModels;
 
 namespace LMS.Controllers
 {
@@ -66,10 +67,33 @@ namespace LMS.Controllers
     /// <param name="uid">The uid of the student</param>
     /// <returns>The JSON array</returns>
     public IActionResult GetMyClasses(string uid)
-    {
-   
-      return Json(null);
-    }
+        {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from t in db.Classes
+                    join c in db.Courses on t.CourseId equals c.CourseId
+                    into getCourse
+                    from gc in getCourse.DefaultIfEmpty()
+                    join e in db.Enrollment on uid equals e.UId
+                    into getGrade1
+                    from gg in getGrade1.DefaultIfEmpty()
+                    join e in db.Enrollment on gg.ClassId equals e.ClassId
+                    into getGrade2
+                    from gg2 in getGrade2.DefaultIfEmpty()
+
+                    select new
+                    {
+                        subject = gc.Subject,
+                        number = gc.Number,
+                        name = gc.Name,
+                        season = t.Season,
+                        year = t.Year,
+                        grade = gg2 == null ? "--" : gg2.Grade
+                    };
+                return Json(query.ToArray());
+            }
+        }
 
     /// <summary>
     /// Returns a JSON array of all the assignments in the given class that the given student is enrolled in.

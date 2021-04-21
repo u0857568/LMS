@@ -502,7 +502,7 @@ namespace LMS.Controllers
 
             }*/
 
-            string newID = "u2222222";
+            string newID = "u7654323";
 
 
             if (role == "Student")
