@@ -20,7 +20,7 @@ namespace LMS.Controllers
 
         public CommonController()
         {
-            db = new Team36LMSContext();
+            db = new Team36LMSContext();   
         }
 
 
