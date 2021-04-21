@@ -33,7 +33,7 @@ namespace LMS.Controllers
 
         // TODO: Uncomment and change 'X' after you have scaffoled
 
-/*        public void UseLMSContext(Team36LMSContext ctx)
+        public void UseLMSContext(Team36LMSContext ctx)
         {
             db = ctx;
         }
@@ -45,7 +45,7 @@ namespace LMS.Controllers
                 db.Dispose();
             }
             base.Dispose(disposing);
-        }*/
+        }
 
 
 
@@ -58,8 +58,19 @@ namespace LMS.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetDepartments()
     {
-      // TODO: Do not return this hard-coded array.
-      return Json(new[] { new { name = "None", subject = "NONE" } });
+            // TODO: Do not return this hard-coded array.
+
+            using (Team36LMSContext db = new Team36LMSContext()) {
+                var query =
+                    from t in db.Departments
+                    select new
+                    {
+                        name = t.Name,
+                        subject = t.Subject
+                    };
+                return Json(query.ToArray());
+            }
+            
     }
 
 
