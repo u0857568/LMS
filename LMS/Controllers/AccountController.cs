@@ -497,29 +497,21 @@ namespace LMS.Controllers
                                     select s.UId);
                 var adminIDS = (from s in db.Administrators
                                 select s.UId);
-
-                /*List<int> sList = new List<int>();
-                List<int> pList = new List<int>();
-                List<int> aList = new List<int>();*/
-
                 List<int> list = new List<int>();
 
                 foreach (string sID in studentIDS)
                 {
                     Int32.TryParse(sID.Substring(1), out int result);
-                    //sList.Add(result);
                     list.Add(result);
                 }
                 foreach (string pID in professorIDS)
                 {
                     Int32.TryParse(pID.Substring(1), out int result);
-                    //pList.Add(result);
                     list.Add(result);
                 }
                 foreach (string aID in adminIDS)
                 {
                     Int32.TryParse(aID.Substring(1), out int result);
-                    //aList.Add(result);
                     list.Add(result);
                 }
 
