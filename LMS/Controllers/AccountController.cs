@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using LMS.Models;
 using LMS.Models.AccountViewModels;
 using LMS.Services;
+using LMS.Models.LMSModels;
 
 namespace LMS.Controllers
 {
@@ -487,7 +488,51 @@ namespace LMS.Controllers
     /// <returns>A unique uID that is not be used by anyone else</returns>
     public string CreateNewUser(string fName, string lName, DateTime DOB, string SubjectAbbrev, string role)
     {
-      return "";
+            /*using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var maxS = (from s in db.Students
+                             orderby s.UId
+                             select s.UId).Take(1);
+                var maxP = (from s in db.Professors
+                             orderby s.UId
+                             select s.UId).Take(1);
+                var maxA = (from s in db.Administrators
+                             orderby s.UId
+                             select s.UId).Take(1);
+
+            }*/
+
+            string newID = "u2222222";
+
+
+            if (role == "Student")
+            {
+                Students newStudent = new Students();
+                newStudent.UId = newID;
+                newStudent.FirstName = fName;
+                newStudent.LastName = lName;
+                newStudent.Dob = DOB;
+                newStudent.Major = SubjectAbbrev;
+
+                db.Students.Add(newStudent);
+                db.SaveChanges();
+            }
+
+            if (role == "Administrator")
+            {
+                Administrators newAdm = new Administrators();
+                newAdm.UId = newID;
+                newAdm.FirstName = fName;
+                newAdm.LastName = lName;
+                newAdm.Dob = DOB;
+
+
+                db.Administrators.Add(newAdm);
+                db.SaveChanges();
+            }
+
+
+            return newID;
     }
 
     /*******End code to modify********/
