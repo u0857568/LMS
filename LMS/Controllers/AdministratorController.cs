@@ -97,27 +97,43 @@ namespace LMS.Controllers
         /// false if the Course already exists.</returns>
         public IActionResult CreateCourse(string subject, int number, string name)
         {
+            int newCourseID = 1;
             using (Team36LMSContext db = new Team36LMSContext())
             {
                 var query = (from c in db.Courses
-                            where c.Subject == subject
-                            && c.Number == number
-                            select c).FirstOrDefault();
+                             where c.Subject == subject
+                             && c.Number == number
+                             select c).FirstOrDefault();
 
                 if (query != null)
                 {
                     return Json(new { success = false });
                 }
+
+
+                var courses = (from c in db.Courses
+                               select c.CourseId);
+                List<int> list = new List<int>();
+                foreach (int courseID in courses)
+                {
+                    list.Add(courseID);
+                }
+
+                if (list.Count() > 0)
+                {
+                    newCourseID = list.Max() + 1;
+                }
+
+                Courses newCourse = new Courses();
+                newCourse.Subject = subject;
+                newCourse.Number = (uint)number;
+                newCourse.Name = name;
+                newCourse.CourseId = (uint)newCourseID;
+                db.Courses.Add(newCourse);
+                db.SaveChanges();
+
+                return Json(new { success = true });
             }
-
-            Courses newCourse = new Courses();
-            newCourse.Subject = subject;
-            newCourse.Number = (uint)number;
-            newCourse.Name = name;
-            db.Courses.Add(newCourse);
-            db.SaveChanges();
-
-            return Json(new { success = true });
         }
 
 
@@ -154,8 +170,9 @@ namespace LMS.Controllers
 
                 var query2 = (from c in db.Classes
                               where c.Season == season 
+                              && c.Year == year
                               && c.Location == location 
-                              && ((c.Start >= start.TimeOfDay && c.Start <= end.TimeOfDay) || (c.End >= start.TimeOfDay && c.End <= end.TimeOfDay))
+                              && ((c.Start > start.TimeOfDay && c.Start < end.TimeOfDay) || (c.End > start.TimeOfDay && c.End < end.TimeOfDay) || (c.Start > start.TimeOfDay && c.End < end.TimeOfDay ))
                               select c).FirstOrDefault();
 
                 if (query2 != null)
@@ -175,7 +192,6 @@ namespace LMS.Controllers
                 {
                     newClassID = list.Max() + 1;
                 }
-
 
                 var courseID = (from c in db.Courses
                                 where c.Subject == subject && c.Number == number
