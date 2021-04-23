@@ -313,9 +313,49 @@ namespace LMS.Controllers
     /// <param name="uid">The uid of the student</param>
     /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
     public IActionResult GetGPA(string uid)
-    {     
+    {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                String GPA = "0.0";
+                double Grades = 0.0;
+                int count = 0;
+                var grades =
+                    from e in db.Enrollment
+                    where e.UId == uid
+                    select e.Grade;
+                if (grades.ToArray().FirstOrDefault() != null)
+                {
+                    foreach (string g in grades)
+                    {
+                        if (g == "A") { Grades += 4.0; count++; }
+                        else if (g == "A-") { Grades += 3.7; count++; }
+                        else if (g == "A-") { Grades += 3.7; count++; }
+                        else if (g == "B+") { Grades += 3.3; count++; }
+                        else if (g == "B") { Grades += 3.0; count++; }
+                        else if (g == "B-") { Grades += 2.7; count++; }
+                        else if (g == "C+") { Grades += 2.3; count++; }
+                        else if (g == "C") { Grades += 2.0; count++; }
+                        else if (g == "C-") { Grades += 1.7; count++; }
+                        else if (g == "D+") { Grades += 1.3; count++; }
+                        else if (g == "D") { Grades += 1.0; count++; }
+                        else if (g == "D-") { Grades += 0.7; count++; }
+                        else if (g == "F") { Grades += 0.0; count++; }
 
-      return Json(null);
+                    }
+                    GPA = (Grades / (double)count).ToString();
+                    
+                    
+                }
+                System.Diagnostics.Debug.WriteLine("GPA is: "+GPA);
+                var gpanum = 
+                    from s in db.Students
+                    select new {
+                        gpa = GPA
+                    };
+                return Json(gpanum.ToArray());
+            }
+
+            
     }
 
     /*******End code to modify********/
