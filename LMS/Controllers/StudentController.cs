@@ -110,10 +110,82 @@ namespace LMS.Controllers
     /// <param name="uid"></param>
     /// <returns>The JSON array</returns>
     public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
-    {     
+    {
+            bool flag = false;
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var check =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
 
-      return Json(null);
-    }
+                    join e in db.Enrollment on uid equals e.UId
+                    where e.ClassId == cl.ClassId
+
+                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+
+                    join assignment in db.Assignments on ac.Acid equals assignment.Acid
+
+                    join s in db.Submission on assignment.Aid equals s.Aid
+
+                    select new {
+                        score = s == null ? null : (uint?)s.Score
+                    };
+
+                if (check.ToArray().FirstOrDefault() != null) { flag = true; };
+
+                if (flag)
+                {
+                    var query =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                    join e in db.Enrollment on uid equals e.UId
+                    where e.ClassId == cl.ClassId
+
+                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+
+                    join assignment in db.Assignments on ac.Acid equals assignment.Acid
+
+                    join s in db.Submission on assignment.Aid equals s.Aid
+
+                    select new
+                    {
+                        aname = assignment.Name,
+                        cname = ac.Name,
+                        due = assignment.Due,
+                        score = s == null ? null : (uint?)s.Score
+                    };
+                    return Json(query.ToArray());
+
+                }
+                else {
+                    var query =
+                        from c in db.Courses
+                        join cl in db.Classes on c.CourseId equals cl.CourseId
+                        where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                        join e in db.Enrollment on uid equals e.UId
+                        where e.ClassId == cl.ClassId
+
+                        join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+
+                        join assignment in db.Assignments on ac.Acid equals assignment.Acid
+
+                        select new
+                        {
+                            aname = assignment.Name,
+                            cname = ac.Name,
+                            due = assignment.Due,
+                        };
+
+                    return Json(query.ToArray());
+                }
+                    
+                
+            }
+        }
 
 
 
@@ -138,9 +210,45 @@ namespace LMS.Controllers
     public IActionResult SubmitAssignmentText(string subject, int num, string season, int year, 
       string category, string asgname, string uid, string contents)
     {
-     
-      return Json(new { success = false });
-    }
+
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                    join e in db.Enrollment on uid equals e.UId
+                    where e.ClassId == cl.ClassId
+
+                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+                    where ac.Name == category
+
+                    join assignment in db.Assignments on ac.Acid equals assignment.Acid
+                    where assignment.Name == asgname
+
+                    select new
+                    {
+                        assignment.Aid
+                    };
+
+                var assignmentID = query.ToArray().FirstOrDefault();
+                
+                //System.Diagnostics.Debug.WriteLine(assignmentID);
+
+                Submission newS = new Submission();
+                newS.UId = uid;
+                newS.DateTime = DateTime.Now;
+                newS.Score = 0;
+                newS.Contents = contents;
+                newS.Aid = assignmentID.Aid;
+
+                db.Submission.Add(newS);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            }
+        }
 
     
     /// <summary>
@@ -154,10 +262,42 @@ namespace LMS.Controllers
     /// <returns>A JSON object containing {success = {true/false},
 	/// false if the student is already enrolled in the Class.</returns>
     public IActionResult Enroll(string subject, int num, string season, int year, string uid)
-    {      
+    {
 
-      return Json(new { success = false });
-    }
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                    select new
+                    {
+                        cl.ClassId
+                    };
+
+                var classID = query.ToArray().FirstOrDefault();
+
+                var currClass = (from e in db.Enrollment
+                                 where e.UId == uid
+                                 select e.ClassId);
+                foreach (uint cid in currClass) {
+                    if (cid == classID.ClassId) {
+                        return Json(new { success = false });
+                    }
+                }
+
+                Enrollment newE = new Enrollment();
+                newE.UId = uid;
+                newE.ClassId = classID.ClassId;
+                newE.Grade = "--";
+
+                db.Enrollment.Add(newE);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            }
+        }
 
 
 
@@ -173,9 +313,49 @@ namespace LMS.Controllers
     /// <param name="uid">The uid of the student</param>
     /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
     public IActionResult GetGPA(string uid)
-    {     
+    {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                String GPA = "0.0";
+                double Grades = 0.0;
+                int count = 0;
+                var grades =
+                    from e in db.Enrollment
+                    where e.UId == uid
+                    select e.Grade;
+                if (grades.ToArray().FirstOrDefault() != null)
+                {
+                    foreach (string g in grades)
+                    {
+                        if (g == "A") { Grades += 4.0; count++; }
+                        else if (g == "A-") { Grades += 3.7; count++; }
+                        else if (g == "A-") { Grades += 3.7; count++; }
+                        else if (g == "B+") { Grades += 3.3; count++; }
+                        else if (g == "B") { Grades += 3.0; count++; }
+                        else if (g == "B-") { Grades += 2.7; count++; }
+                        else if (g == "C+") { Grades += 2.3; count++; }
+                        else if (g == "C") { Grades += 2.0; count++; }
+                        else if (g == "C-") { Grades += 1.7; count++; }
+                        else if (g == "D+") { Grades += 1.3; count++; }
+                        else if (g == "D") { Grades += 1.0; count++; }
+                        else if (g == "D-") { Grades += 0.7; count++; }
+                        else if (g == "F") { Grades += 0.0; count++; }
 
-      return Json(null);
+                    }
+                    GPA = (Grades / (double)count).ToString();
+                    
+                    
+                }
+                System.Diagnostics.Debug.WriteLine("GPA is: "+GPA);
+                var gpanum = 
+                    from s in db.Students
+                    select new {
+                        gpa = GPA
+                    };
+                return Json(gpanum.ToArray());
+            }
+
+            
     }
 
     /*******End code to modify********/
