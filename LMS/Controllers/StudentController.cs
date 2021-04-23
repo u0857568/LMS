@@ -234,7 +234,7 @@ namespace LMS.Controllers
 
                 var assignmentID = query.ToArray().FirstOrDefault();
                 
-                System.Diagnostics.Debug.WriteLine(assignmentID);
+                //System.Diagnostics.Debug.WriteLine(assignmentID);
 
                 Submission newS = new Submission();
                 newS.UId = uid;
@@ -262,10 +262,42 @@ namespace LMS.Controllers
     /// <returns>A JSON object containing {success = {true/false},
 	/// false if the student is already enrolled in the Class.</returns>
     public IActionResult Enroll(string subject, int num, string season, int year, string uid)
-    {      
+    {
 
-      return Json(new { success = false });
-    }
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                    select new
+                    {
+                        cl.ClassId
+                    };
+
+                var classID = query.ToArray().FirstOrDefault();
+
+                var currClass = (from e in db.Enrollment
+                                 where e.UId == uid
+                                 select e.ClassId);
+                foreach (uint cid in currClass) {
+                    if (cid == classID.ClassId) {
+                        return Json(new { success = false });
+                    }
+                }
+
+                Enrollment newE = new Enrollment();
+                newE.UId = uid;
+                newE.ClassId = classID.ClassId;
+                newE.Grade = "--";
+
+                db.Enrollment.Add(newE);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            }
+        }
 
 
 
