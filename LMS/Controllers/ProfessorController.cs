@@ -105,8 +105,9 @@ namespace LMS.Controllers
     /// <returns>The JSON array</returns>
     public IActionResult GetStudentsInClass(string subject, int num, string season, int year)
     {
-      
+
       return Json(null);
+
     }
 
 
@@ -246,7 +247,7 @@ namespace LMS.Controllers
     /// <returns>The JSON array</returns>
     public IActionResult GetMyClasses(string uid)
     {     
-
+        
       return Json(null);
     }
 
