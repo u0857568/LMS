@@ -110,10 +110,82 @@ namespace LMS.Controllers
     /// <param name="uid"></param>
     /// <returns>The JSON array</returns>
     public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
-    {     
+    {
+            bool flag = false;
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var check =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
 
-      return Json(null);
-    }
+                    join e in db.Enrollment on uid equals e.UId
+                    where e.ClassId == cl.ClassId
+
+                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+
+                    join assignment in db.Assignments on ac.Acid equals assignment.Acid
+
+                    join s in db.Submission on assignment.Aid equals s.Aid
+
+                    select new {
+                        score = s == null ? null : (uint?)s.Score
+                    };
+
+                if (check.ToArray().FirstOrDefault() != null) { flag = true; };
+
+                if (flag)
+                {
+                    var query =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                    join e in db.Enrollment on uid equals e.UId
+                    where e.ClassId == cl.ClassId
+
+                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+
+                    join assignment in db.Assignments on ac.Acid equals assignment.Acid
+
+                    join s in db.Submission on assignment.Aid equals s.Aid
+
+                    select new
+                    {
+                        aname = assignment.Name,
+                        cname = ac.Name,
+                        due = assignment.Due,
+                        score = s == null ? null : (uint?)s.Score
+                    };
+                    return Json(query.ToArray());
+
+                }
+                else {
+                    var query =
+                        from c in db.Courses
+                        join cl in db.Classes on c.CourseId equals cl.CourseId
+                        where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                        join e in db.Enrollment on uid equals e.UId
+                        where e.ClassId == cl.ClassId
+
+                        join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+
+                        join assignment in db.Assignments on ac.Acid equals assignment.Acid
+
+                        select new
+                        {
+                            aname = assignment.Name,
+                            cname = ac.Name,
+                            due = assignment.Due,
+                        };
+
+                    return Json(query.ToArray());
+                }
+                    
+                
+            }
+        }
 
 
 
@@ -138,9 +210,45 @@ namespace LMS.Controllers
     public IActionResult SubmitAssignmentText(string subject, int num, string season, int year, 
       string category, string asgname, string uid, string contents)
     {
-     
-      return Json(new { success = false });
-    }
+
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
+
+                    join e in db.Enrollment on uid equals e.UId
+                    where e.ClassId == cl.ClassId
+
+                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+                    where ac.Name == category
+
+                    join assignment in db.Assignments on ac.Acid equals assignment.Acid
+                    where assignment.Name == asgname
+
+                    select new
+                    {
+                        assignment.Aid
+                    };
+
+                var assignmentID = query.ToArray().FirstOrDefault();
+                
+                System.Diagnostics.Debug.WriteLine(assignmentID);
+
+                Submission newS = new Submission();
+                newS.UId = uid;
+                newS.DateTime = DateTime.Now;
+                newS.Score = 0;
+                newS.Contents = contents;
+                newS.Aid = assignmentID.Aid;
+
+                db.Submission.Add(newS);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            }
+        }
 
     
     /// <summary>
