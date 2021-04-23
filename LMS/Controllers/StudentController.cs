@@ -71,25 +71,20 @@ namespace LMS.Controllers
             using (Team36LMSContext db = new Team36LMSContext())
             {
                 var query =
-                    from t in db.Classes
-                    join c in db.Courses on t.CourseId equals c.CourseId
-                    into getCourse
-                    from gc in getCourse.DefaultIfEmpty()
-                    join e in db.Enrollment on uid equals e.UId
-                    into getGrade1
-                    from gg in getGrade1.DefaultIfEmpty()
-                    join e in db.Enrollment on gg.ClassId equals e.ClassId
-                    into getGrade2
-                    from gg2 in getGrade2.DefaultIfEmpty()
+                    from s in db.Students
+                    where s.UId == uid
+                    join e in db.Enrollment on s.UId equals e.UId
+                    join cl in db.Classes on e.ClassId equals cl.ClassId
+                    join c in db.Courses on cl.CourseId equals c.CourseId
 
                     select new
                     {
-                        subject = gc.Subject,
-                        number = gc.Number,
-                        name = gc.Name,
-                        season = t.Season,
-                        year = t.Year,
-                        grade = gg2 == null ? "--" : gg2.Grade
+                        subject = c.Subject,
+                        number = c.Number,
+                        name = c.Name,
+                        season = cl.Season,
+                        year = cl.Year,
+                        grade = e == null ? "--" : e.Grade
                     };
                 return Json(query.ToArray());
             }
@@ -111,9 +106,10 @@ namespace LMS.Controllers
     /// <returns>The JSON array</returns>
     public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
     {
-            bool flag = false;
+            
             using (Team36LMSContext db = new Team36LMSContext())
             {
+                bool flag = true;
                 var check =
                     from c in db.Courses
                     join cl in db.Classes on c.CourseId equals cl.CourseId
@@ -122,7 +118,7 @@ namespace LMS.Controllers
                     join e in db.Enrollment on uid equals e.UId
                     where e.ClassId == cl.ClassId
 
-                    join ac in db.AssignmentCategories on e.ClassId equals ac.ClassId
+                    join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
 
                     join assignment in db.Assignments on ac.Acid equals assignment.Acid
 
@@ -132,7 +128,9 @@ namespace LMS.Controllers
                         score = s == null ? null : (uint?)s.Score
                     };
 
-                if (check.ToArray().FirstOrDefault() != null) { flag = true; };
+                
+                if (check.ToArray().FirstOrDefault() == null) { flag = false; };
+                System.Diagnostics.Debug.WriteLine("Check :" + check.ToArray().FirstOrDefault() + "hhh" + flag);
 
                 if (flag)
                 {
@@ -177,7 +175,7 @@ namespace LMS.Controllers
                         {
                             aname = assignment.Name,
                             cname = ac.Name,
-                            due = assignment.Due,
+                            due = assignment.Due
                         };
 
                     return Json(query.ToArray());
@@ -271,25 +269,22 @@ namespace LMS.Controllers
                     join cl in db.Classes on c.CourseId equals cl.CourseId
                     where c.Subject == subject && c.Number == num && cl.Season == season && cl.Year == year
 
-                    select new
-                    {
-                        cl.ClassId
-                    };
+                    select cl.ClassId;
 
-                var classID = query.ToArray().FirstOrDefault();
+                var classID = query.FirstOrDefault();
 
                 var currClass = (from e in db.Enrollment
                                  where e.UId == uid
                                  select e.ClassId);
                 foreach (uint cid in currClass) {
-                    if (cid == classID.ClassId) {
+                    if (cid == classID) {
                         return Json(new { success = false });
                     }
                 }
 
                 Enrollment newE = new Enrollment();
                 newE.UId = uid;
-                newE.ClassId = classID.ClassId;
+                newE.ClassId = classID;
                 newE.Grade = "--";
 
                 db.Enrollment.Add(newE);
@@ -301,64 +296,91 @@ namespace LMS.Controllers
 
 
 
-    /// <summary>
-    /// Calculates a student's GPA
-    /// A student's GPA is determined by the grade-point representation of the average grade in all their classes.
-    /// Assume all classes are 4 credit hours.
-    /// If a student does not have a grade in a class ("--"), that class is not counted in the average.
-    /// If a student does not have any grades, they have a GPA of 0.0.
-    /// Otherwise, the point-value of a letter grade is determined by the table on this page:
-    /// https://advising.utah.edu/academic-standards/gpa-calculator-new.php
-    /// </summary>
-    /// <param name="uid">The uid of the student</param>
-    /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
-    public IActionResult GetGPA(string uid)
-    {
+        /// <summary>
+        /// Calculates a student's GPA
+        /// A student's GPA is determined by the grade-point representation of the average grade in all their classes.
+        /// Assume all classes are 4 credit hours.
+        /// If a student does not have a grade in a class ("--"), that class is not counted in the average.
+        /// If a student does not have any grades, they have a GPA of 0.0.
+        /// Otherwise, the point-value of a letter grade is determined by the table on this page:
+        /// https://advising.utah.edu/academic-standards/gpa-calculator-new.php
+        /// </summary>
+        /// <param name="uid">The uid of the student</param>
+        /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
+        /// 
+        /* public IActionResult GetGPA(string uid)
+         {
+             var query =
+               from e in db.Enrolled
+               where e.Student == uid
+               select e.Grade;
+
+             int numClasses = query.Count();
+
+             float gpa = 0.0f;
+
+
+
+             //int numClasses = query.Count();
+            // float gpa = 0.0f;
+             if (numClasses == 0)
+                 return Json(new { gpa = 0.0 });
+
+             return Json(new { gpa = gpa / numClasses });*/
+
+
+        public IActionResult GetGPA(string uid)
+        {
             using (Team36LMSContext db = new Team36LMSContext())
             {
-                String GPA = "0.0";
-                double Grades = 0.0;
-                int count = 0;
-                var grades =
-                    from e in db.Enrollment
-                    where e.UId == uid
-                    select e.Grade;
-                if (grades.ToArray().FirstOrDefault() != null)
-                {
-                    foreach (string g in grades)
-                    {
-                        if (g == "A") { Grades += 4.0; count++; }
-                        else if (g == "A-") { Grades += 3.7; count++; }
-                        else if (g == "A-") { Grades += 3.7; count++; }
-                        else if (g == "B+") { Grades += 3.3; count++; }
-                        else if (g == "B") { Grades += 3.0; count++; }
-                        else if (g == "B-") { Grades += 2.7; count++; }
-                        else if (g == "C+") { Grades += 2.3; count++; }
-                        else if (g == "C") { Grades += 2.0; count++; }
-                        else if (g == "C-") { Grades += 1.7; count++; }
-                        else if (g == "D+") { Grades += 1.3; count++; }
-                        else if (g == "D") { Grades += 1.0; count++; }
-                        else if (g == "D-") { Grades += 0.7; count++; }
-                        else if (g == "F") { Grades += 0.0; count++; }
 
-                    }
-                    GPA = (Grades / (double)count).ToString();
-                    
-                    
+
+            String GPA = "0.0";
+            double Grades = 0.0;
+            int count = 0;
+            var query =
+                from e in db.Enrollment
+                where e.UId == uid
+                select e.Grade;
+
+
+            if (query.ToArray().FirstOrDefault() != null)
+            {
+                foreach (string g in query)
+                {
+                    if (g == "A") { Grades += 4.0; count++; }
+                    else if (g == "A-") { Grades += 3.7; count++; }
+                    else if (g == "B+") { Grades += 3.3; count++; }
+                    else if (g == "B") { Grades += 3.0; count++; }
+                    else if (g == "B-") { Grades += 2.7; count++; }
+                    else if (g == "C+") { Grades += 2.3; count++; }
+                    else if (g == "C") { Grades += 2.0; count++; }
+                    else if (g == "C-") { Grades += 1.7; count++; }
+                    else if (g == "D+") { Grades += 1.3; count++; }
+                    else if (g == "D") { Grades += 1.0; count++; }
+                    else if (g == "D-") { Grades += 0.7; count++; }
+                    else if (g == "F") { Grades += 0.0; count++; }
+
                 }
-                System.Diagnostics.Debug.WriteLine("GPA is: "+GPA);
-                var gpanum = 
-                    from s in db.Students
-                    select new {
-                        gpa = GPA
-                    };
-                return Json(gpanum.ToArray());
+                GPA = (Grades / (double)count).ToString();
+
+
+            }
+            //System.Diagnostics.Debug.WriteLine("GPA is: "+GPA);
+            var gpanum =
+                from s in db.Students
+                select new
+                {
+                    gpa = GPA
+                };
+            return Json(gpanum.ToArray());
+
             }
 
-            
+
+        }
+
+        /*******End code to modify********/
+
     }
-
-    /*******End code to modify********/
-
-  }
-}
+    }

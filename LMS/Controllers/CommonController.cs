@@ -87,9 +87,27 @@ namespace LMS.Controllers
     /// </summary>
     /// <returns>The JSON array</returns>
     public IActionResult GetCatalog()
-    {     
+    {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from t in db.Departments
+                    join c in db.Courses on t.Subject equals c.Subject
+                    
+                    select new
+                    {
+                        dname = t.Name,
+                        subject = t.Subject,
+                        courses = from c2 in db.Courses where t.Subject == c2.Subject 
+                                  select new {
+                                    number = c2.Number,
+                                    cname = c2.Name
+                                  }
 
-      return Json(null);
+                    };
+                return Json(query.ToArray());
+            }
+
     }
 
     /// <summary>
@@ -108,9 +126,27 @@ namespace LMS.Controllers
     /// <returns>The JSON array</returns>
     public IActionResult GetClassOfferings(string subject, int number)
     {
-      
-      return Json(null);
-    }
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from t in db.Courses
+                    where subject == t.Subject && number == t.Number
+                    join c in db.Classes on t.CourseId equals c.CourseId
+                    join p in db.Professors on c.UId equals p.UId
+
+                    select new
+                    {
+                        season = c.Season,
+                        yaer = c.Year,
+                        location = c.Location,
+                        start = c.Start,
+                        end = c.End,
+                        fname = p.FirstName,
+                        lname = p.LastName
+                    };
+                return Json(query.ToArray());
+            }
+        }
 
     /// <summary>
     /// This method does NOT return JSON. It returns plain text (containing html).
@@ -126,8 +162,21 @@ namespace LMS.Controllers
     /// <returns>The assignment contents</returns>
     public IActionResult GetAssignmentContents(string subject, int num, string season, int year, string category, string asgname)
     {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    where c.Subject == subject && c.Number == num
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where cl.Season == season && cl.Year == year
+                    join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                    where ac.Name == category
+                    join a in db.Assignments on ac.Acid equals a.Acid
+                    where a.Name == asgname
+                    select a.Contents;
 
-      return Content("");
+                return Content(query.ToString());
+            }
     }
 
 
