@@ -137,7 +137,7 @@ namespace LMS.Controllers
                     select new
                     {
                         season = c.Season,
-                        yaer = c.Year,
+                        year = c.Year,
                         location = c.Location,
                         start = c.Start,
                         end = c.End,

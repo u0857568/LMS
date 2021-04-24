@@ -108,31 +108,21 @@ namespace LMS.Controllers
         {
             using (Team36LMSContext db = new Team36LMSContext())
             {
-                /*var query = from c in db.Courses
-                            join k in db.Classes on c.CourseId equals k.CourseId into CC
-                            from cc in CC.DefaultIfEmpty()
-                            join e in db.Enrollment on cc.ClassId equals e.ClassId into CCE
-                            from cce in CCE.DefaultIfEmpty()
-                            join s in db.Students on cce.UId equals s.UId into CCES
-                            from cces in CCES.DefaultIfEmpty()
-                            select new
-                            {
-                                fName = cces.FirstName,
-                                lName = cces.LastName
-                            };*/
-
-                var query = from c in db.Courses
-                            join k in db.Classes on c.CourseId equals k.CourseId into CC
-                            from cc in CC.DefaultIfEmpty()
-                            join e in db.Enrollment on cc.ClassId equals e.ClassId into CCE
-                            from cce in CCE.DefaultIfEmpty()
-                            join s in db.Students on cce.UId equals s.UId into CCES
-                            from cces in CCES.DefaultIfEmpty()
-                            select new
-                            {
-                                fName = cces.FirstName,
-                                lName = cces.LastName
-                            };
+                var query =
+                    from c in db.Courses
+                    where subject == c.Subject && num == c.Number
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where season == cl.Season && year == cl.Year
+                    join e in db.Enrollment on cl.ClassId equals e.ClassId
+                    join s in db.Students on e.UId equals s.UId
+                    select new
+                    {
+                        fname = s.FirstName,
+                        lname = s.LastName,
+                        uid = s.UId,
+                        dob = s.Dob,
+                        grade = e == null ? "--" : e.Grade
+                    };
 
 
                 return Json(query.ToArray());
@@ -159,8 +149,55 @@ namespace LMS.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetAssignmentsInCategory(string subject, int num, string season, int year, string category)
         {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
 
-            return Json(null);
+                if (category != null)
+                {
+                    var query =
+                        from c in db.Courses
+                        where c.Subject == subject && c.Number == num
+                        join cl in db.Classes on c.CourseId equals cl.CourseId
+                        where cl.Season == season && cl.Year == year
+                        join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                        where ac.Name == category
+                        join a in db.Assignments on ac.Acid equals a.Acid
+
+                        select new
+                        {
+                            aname = a.Name,
+                            cname = ac.Name,
+                            due = a.Due,
+                            submissions = (from s in db.Submission
+                                           where a.Aid == s.Aid
+                                           select s).Count()
+                        };
+
+                    return Json(query.ToArray());
+                }
+                else
+                {
+                    var query =
+                        from c in db.Courses
+                        where c.Subject == subject && c.Number == num
+                        join cl in db.Classes on c.CourseId equals cl.CourseId
+                        where cl.Season == season && cl.Year == year
+                        join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+
+                        join a in db.Assignments on ac.Acid equals a.Acid
+
+                        select new
+                        {
+                            aname = a.Name,
+                            cname = ac.Name,
+                            due = a.Due,
+                            submissions = (from s in db.Submission
+                                           where a.Aid == s.Aid
+                                           select s).Count()
+                        };
+                    return Json(query.ToArray());
+                }
+            }
         }
 
 
@@ -178,8 +215,22 @@ namespace LMS.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetAssignmentCategories(string subject, int num, string season, int year)
         {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    where c.Subject == subject && c.Number == num
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where cl.Season == season && cl.Year == year
+                    join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                    select new
+                    {
+                        name = ac.Name,
+                        weight = ac.GradingWeight
+                    };
+                return Json(query.ToArray());
 
-            return Json(null);
+            }
         }
 
         /// <summary>
@@ -195,8 +246,55 @@ namespace LMS.Controllers
         ///	false if an assignment category with the same name already exists in the same class.</returns>
         public IActionResult CreateAssignmentCategory(string subject, int num, string season, int year, string category, int catweight)
         {
+            int newAssignmentCatID = 1;
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query = (from ac in db.AssignmentCategories
+                             where ac.Name == category
+                             join c in db.Classes on ac.ClassId equals c.ClassId
+                             select ac).FirstOrDefault();
+                if (query != null)
+                {
+                    return Json(new { success = false });
+                }
 
-            return Json(new { success = false });
+
+                var query2 = (from ac in db.AssignmentCategories
+                              where ac.Name == category
+                              join c in db.Classes on ac.ClassId equals c.ClassId
+                              where c.Year == year && c.Season == season
+                              join cou in db.Courses on c.CourseId equals cou.CourseId
+                              where cou.Number == num && cou.Subject == subject
+                              select new
+                              {
+                                  assiClassID = c.ClassId
+                              }).FirstOrDefault();
+
+                var assignmentIDs = (from a in db.Assignments
+                                     select a.Aid);
+                List<int> list = new List<int>();
+                foreach (int a in assignmentIDs)
+                {
+                    list.Add(a);
+                }
+
+                if (list.Count() > 0)
+                {
+                    newAssignmentCatID = list.Max() + 1;
+                }
+
+                AssignmentCategories assiCat = new AssignmentCategories();
+                assiCat.Acid = (uint)newAssignmentCatID;
+                assiCat.Name = category;
+                assiCat.GradingWeight = (uint)catweight;
+                assiCat.ClassId = query2.assiClassID;
+
+                db.AssignmentCategories.Add(assiCat);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+
+            }
         }
 
         /// <summary>
@@ -215,8 +313,57 @@ namespace LMS.Controllers
         /// false if an assignment with the same name already exists in the same assignment category.</returns>
         public IActionResult CreateAssignment(string subject, int num, string season, int year, string category, string asgname, int asgpoints, DateTime asgdue, string asgcontents)
         {
+            int newAssignmentID = 1;
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query = (from a in db.Assignments
+                             where a.Name == asgname
+                             join ac in db.AssignmentCategories on a.Acid equals ac.Acid
+                             select a).FirstOrDefault();
+                if (query != null)
+                {
+                    return Json(new { success = false });
+                }
 
-            return Json(new { success = false });
+
+                var query2 = (from ac in db.AssignmentCategories
+                              where ac.Name == category
+                              join c in db.Classes on ac.ClassId equals c.ClassId
+                              where c.Year == year && c.Season == season
+                              join cou in db.Courses on c.CourseId equals cou.CourseId
+                              where cou.Number == num && cou.Subject == subject
+                              select new
+                              {
+                                  assiCat = ac.Acid
+                              }).FirstOrDefault();
+
+                var assignmentIDs = (from a in db.Assignments
+                                     select a.Aid);
+                List<int> list = new List<int>();
+                foreach (int a in assignmentIDs)
+                {
+                    list.Add(a);
+                }
+
+                if (list.Count() > 0)
+                {
+                    newAssignmentID = list.Max() + 1;
+                }
+
+                Assignments assignment = new Assignments();
+                assignment.Name = asgname;
+                assignment.Contents = asgcontents;
+                assignment.Due = asgdue;
+                assignment.MaxPointValue = (uint)asgpoints;
+                assignment.Aid = newAssignmentID;
+                assignment.Acid = query2.assiCat;
+
+                db.Assignments.Add(assignment);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+
+            }
         }
 
 
@@ -239,8 +386,32 @@ namespace LMS.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetSubmissionsToAssignment(string subject, int num, string season, int year, string category, string asgname)
         {
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query = from s in db.Submission
+                            join st in db.Students on s.UId equals st.UId
+                            where s.UId == st.UId
+                            join a in db.Assignments on s.Aid equals a.Aid
+                            where a.Name == asgname
+                            join ac in db.AssignmentCategories on a.Acid equals ac.Acid
+                            where ac.Name == category
+                            join c in db.Classes on ac.ClassId equals c.ClassId
+                            where c.Season == season && c.Year == year
+                            join cou in db.Courses on c.CourseId equals cou.CourseId
+                            where cou.Subject == subject && cou.Number == num
+                            select new
+                            {
+                                fname = st.FirstName,
+                                lname = st.LastName,
+                                uid = st.UId,
+                                time = s.DateTime,
+                                score = s.Score
+                            };
 
-            return Json(null);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            }
         }
 
 
@@ -261,14 +432,21 @@ namespace LMS.Controllers
             using (Team36LMSContext db = new Team36LMSContext())
             {
                 var query = from s in db.Submission
-                            where s.UId == uid 
+                            where s.UId == uid
                             join a in db.Assignments on s.Aid equals a.Aid
                             where a.Name == asgname
-                            join 
-                            
+                            join ac in db.AssignmentCategories on a.Acid equals ac.Acid
+                            where ac.Name == category
+                            join c in db.Classes on ac.ClassId equals c.ClassId
+                            where c.Season == season && c.Year == year
+                            join cou in db.Courses on c.CourseId equals cou.CourseId
+                            where cou.Subject == subject && cou.Number == num
+                            select s;
 
-
-
+                foreach (Submission s in query)
+                {
+                    s.Score = (uint)score;
+                }
 
                 db.SaveChanges();
 
@@ -293,9 +471,8 @@ namespace LMS.Controllers
         {
             using (Team36LMSContext db = new Team36LMSContext())
             {
-                var query = from e in db.Enrollment
-                            where e.UId == uid
-                            join c in db.Classes on e.ClassId equals c.ClassId
+                var query = from c in db.Classes
+                            where c.UId == uid
                             join k in db.Courses on c.CourseId equals k.CourseId
                             select new
                             {

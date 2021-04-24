@@ -160,7 +160,9 @@ namespace LMS.Controllers
             {
                 var query1 = (from c in db.Classes
                              join q in db.Courses on c.CourseId equals q.CourseId
-                             where c.Season == season && q.Subject == subject
+                             where c.Season == season 
+                             && c.Year == year
+                             && q.Subject == subject
                              select c).FirstOrDefault();
 
                 if (query1 != null)
@@ -209,6 +211,7 @@ namespace LMS.Controllers
                 newClass.ClassId = (uint)newClassID;
                 db.Classes.Add(newClass);
                 db.SaveChanges();
+
 
                 return Json(new { success = true });
 
