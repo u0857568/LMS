@@ -72,10 +72,10 @@ namespace LMS.Controllers
             {
                 var query =
                     from s in db.Students
-                    where s.UId == uid
                     join e in db.Enrollment on s.UId equals e.UId
                     join cl in db.Classes on e.ClassId equals cl.ClassId
                     join c in db.Courses on cl.CourseId equals c.CourseId
+                    where s.UId == uid
 
                     select new
                     {
@@ -130,7 +130,7 @@ namespace LMS.Controllers
 
                 
                 if (check.ToArray().FirstOrDefault() == null) { flag = false; };
-                System.Diagnostics.Debug.WriteLine("Check :" + check.ToArray().FirstOrDefault() + "hhh" + flag);
+                //System.Diagnostics.Debug.WriteLine("Check :" + check.ToArray().FirstOrDefault() + "hhh" + flag);
 
                 if (flag)
                 {
@@ -225,21 +225,34 @@ namespace LMS.Controllers
                     join assignment in db.Assignments on ac.Acid equals assignment.Acid
                     where assignment.Name == asgname
 
-                    select new
-                    {
-                        assignment.Aid
-                    };
+                    select assignment.Aid;
 
-                var assignmentID = query.ToArray().FirstOrDefault();
-                
+                var assignmentID = query.First();
+
                 //System.Diagnostics.Debug.WriteLine(assignmentID);
+                var query2 =
+                    from s in db.Submission
+                    where s.UId == uid && s.Aid == assignmentID
+                    select s;
+
+                if (query2.Count() != 0)
+                {
+
+                    //update
+                    query2.First().Contents = contents;
+                    query2.First().DateTime = DateTime.Now;
+
+                    db.SaveChanges();
+
+                    return Json(new { success = true });
+                }
 
                 Submission newS = new Submission();
                 newS.UId = uid;
                 newS.DateTime = DateTime.Now;
                 newS.Score = 0;
                 newS.Contents = contents;
-                newS.Aid = assignmentID.Aid;
+                newS.Aid = assignmentID;
 
                 db.Submission.Add(newS);
                 db.SaveChanges();
@@ -271,7 +284,12 @@ namespace LMS.Controllers
 
                     select cl.ClassId;
 
-                var classID = query.FirstOrDefault();
+                if (query.Count() == 0)
+                {
+                    return Json(new { success = false });
+                }
+                uint classID = (uint)query.FirstOrDefault();
+                System.Diagnostics.Debug.WriteLine("hwewew: "+classID);
 
                 var currClass = (from e in db.Enrollment
                                  where e.UId == uid
@@ -307,45 +325,20 @@ namespace LMS.Controllers
         /// </summary>
         /// <param name="uid">The uid of the student</param>
         /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
-        /// 
-        /* public IActionResult GetGPA(string uid)
-         {
-             var query =
-               from e in db.Enrolled
-               where e.Student == uid
-               select e.Grade;
-
-             int numClasses = query.Count();
-
-             float gpa = 0.0f;
-
-
-
-             //int numClasses = query.Count();
-            // float gpa = 0.0f;
-             if (numClasses == 0)
-                 return Json(new { gpa = 0.0 });
-
-             return Json(new { gpa = gpa / numClasses });*/
-
-
         public IActionResult GetGPA(string uid)
         {
             using (Team36LMSContext db = new Team36LMSContext())
             {
 
+                double GPA = 0.0;
+                double Grades = 0.0;
+                int count = 0;
+                var query =
+                    from e in db.Enrollment
+                    where e.UId == uid
+                    select e.Grade;
 
-            String GPA = "0.0";
-            double Grades = 0.0;
-            int count = 0;
-            var query =
-                from e in db.Enrollment
-                where e.UId == uid
-                select e.Grade;
 
-
-            if (query.ToArray().FirstOrDefault() != null)
-            {
                 foreach (string g in query)
                 {
                     if (g == "A") { Grades += 4.0; count++; }
@@ -362,22 +355,15 @@ namespace LMS.Controllers
                     else if (g == "F") { Grades += 0.0; count++; }
 
                 }
-                GPA = (Grades / (double)count).ToString();
+                if (count != 0) { GPA = Grades / count; }
 
+                //System.Diagnostics.Debug.WriteLine("GPA is: "+GPA);
 
-            }
-            //System.Diagnostics.Debug.WriteLine("GPA is: "+GPA);
-            var gpanum =
-                from s in db.Students
-                select new
-                {
-                    gpa = GPA
-                };
-            return Json(gpanum.ToArray());
+                return Json(new { gpa = GPA });
 
             }
 
-
+            //return Json(new { gpa = 0.0 });
         }
 
         /*******End code to modify********/

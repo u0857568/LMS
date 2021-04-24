@@ -174,8 +174,8 @@ namespace LMS.Controllers
                     join a in db.Assignments on ac.Acid equals a.Acid
                     where a.Name == asgname
                     select a.Contents;
-
-                return Content(query.ToString());
+                //System.Diagnostics.Debug.WriteLine("content is: " + query.FirstOrDefault());
+                return Content(query.FirstOrDefault());
             }
     }
 
@@ -196,8 +196,25 @@ namespace LMS.Controllers
     /// <returns>The submission text</returns>
     public IActionResult GetSubmissionText(string subject, int num, string season, int year, string category, string asgname, string uid)
     {
-      
-      return Content("");
+            using (Team36LMSContext db = new Team36LMSContext())
+            {
+                var query =
+                    from c in db.Courses
+                    where c.Subject == subject && c.Number == num
+                    join cl in db.Classes on c.CourseId equals cl.CourseId
+                    where cl.Season == season && cl.Year == year
+                    join ac in db.AssignmentCategories on cl.ClassId equals ac.ClassId
+                    where ac.Name == category
+                    join a in db.Assignments on ac.Acid equals a.Acid
+                    where a.Name == asgname
+                    join s in db.Submission on a.Aid equals s.Aid
+                    where s.UId == uid
+                    select s.Contents;
+                //System.Diagnostics.Debug.WriteLine("content is: " + query.FirstOrDefault());
+                return Content(query.FirstOrDefault());
+            }
+
+            //return Content("");
     }
 
 
@@ -219,8 +236,56 @@ namespace LMS.Controllers
     /// </returns>
     public IActionResult GetUser(string uid)
     {
-     
-      return Json(new { success = false } );
+            using (Team36LMSContext db = new Team36LMSContext()) {
+
+                var query1 =
+                    from s in db.Students
+                    where uid == s.UId
+                    join d in db.Departments on s.Major equals d.Subject
+                    select new {
+                        fname = s.FirstName,
+                        lname = s.LastName,
+                        uid = s.UId,
+                        department = d.Name
+                    };
+
+                var query2 =
+                    from p in db.Professors
+                    where uid == p.UId
+                    join d in db.Departments on p.Subject equals d.Subject
+                    select new
+                    {
+                        fname = p.FirstName,
+                        lname = p.LastName,
+                        uid = p.UId,
+                        department = d.Name
+                    };
+                var query3 =
+                    from a in db.Administrators
+                    where uid == a.UId
+                    select new {
+                        fname = a.FirstName,
+                        lname = a.LastName,
+                        uid = a.UId,
+                    };
+
+                if (query1.Count() != 0)
+                {
+                    return Json(query1.ToArray()[0]);
+                }
+                else if (query2.Count() != 0)
+                {
+                    return Json(query2.ToArray()[0]);
+                }
+                else if (query3.Count() != 0)
+                {
+                    return Json(query3.ToArray()[0]);
+                }
+
+                return Json(new { success = false });
+            }
+
+                
     }
 
 
