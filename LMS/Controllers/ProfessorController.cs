@@ -259,9 +259,7 @@ namespace LMS.Controllers
                 }
 
 
-                var query2 = (from ac in db.AssignmentCategories
-                              where ac.Name == category
-                              join c in db.Classes on ac.ClassId equals c.ClassId
+                var query2 = (from c in db.Classes 
                               where c.Year == year && c.Season == season
                               join cou in db.Courses on c.CourseId equals cou.CourseId
                               where cou.Number == num && cou.Subject == subject
@@ -270,12 +268,12 @@ namespace LMS.Controllers
                                   assiClassID = c.ClassId
                               }).FirstOrDefault();
 
-                var assignmentIDs = (from a in db.Assignments
-                                     select a.Aid);
+                var assignmentCatIDs = (from ac in db.AssignmentCategories
+                                     select ac.Acid);
                 List<int> list = new List<int>();
-                foreach (int a in assignmentIDs)
+                foreach (int ac in assignmentCatIDs)
                 {
-                    list.Add(a);
+                    list.Add(ac);
                 }
 
                 if (list.Count() > 0)
@@ -390,7 +388,6 @@ namespace LMS.Controllers
             {
                 var query = from s in db.Submission
                             join st in db.Students on s.UId equals st.UId
-                            where s.UId == st.UId
                             join a in db.Assignments on s.Aid equals a.Aid
                             where a.Name == asgname
                             join ac in db.AssignmentCategories on a.Acid equals ac.Acid
@@ -405,12 +402,12 @@ namespace LMS.Controllers
                                 lname = st.LastName,
                                 uid = st.UId,
                                 time = s.DateTime,
-                                score = s.Score
+                                score = s == null ? null : (uint?)s.Score
                             };
 
                 db.SaveChanges();
 
-                return Json(new { success = true });
+                return Json(query.ToArray());
             }
         }
 
@@ -443,9 +440,37 @@ namespace LMS.Controllers
                             where cou.Subject == subject && cou.Number == num
                             select s;
 
-                foreach (Submission s in query)
+                foreach (var s in query)
                 {
                     s.Score = (uint)score;
+                }
+
+                var query2 = from s in db.Submission
+                             where s.UId == uid
+                             join a in db.Assignments on s.Aid equals a.Aid
+                             join ac in db.AssignmentCategories on a.Acid equals ac.Acid
+                             select new
+                             {
+                                 score = s.Score,
+                                 weight = ac.GradingWeight
+                             };
+
+                double newOverallGrade = 0;
+                foreach (var i in query2)
+                {
+                    double w = i.weight;
+                    double weight = w / 100.0;
+                    double s = i.score;
+                    newOverallGrade += (s * weight);
+                }
+
+                var query3 = from e in db.Enrollment
+                             where e.UId == uid
+                             select e;
+
+                foreach(var i in query3)
+                {
+                    i.Grade = newOverallGrade.ToString();
                 }
 
                 db.SaveChanges();
