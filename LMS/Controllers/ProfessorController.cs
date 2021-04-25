@@ -229,6 +229,7 @@ namespace LMS.Controllers
                         weight = ac.GradingWeight
                     };
                 return Json(query.ToArray());
+
             }
         }
 
@@ -245,7 +246,6 @@ namespace LMS.Controllers
         ///	false if an assignment category with the same name already exists in the same class.</returns>
         public IActionResult CreateAssignmentCategory(string subject, int num, string season, int year, string category, int catweight)
         {
-
             int newAssignmentCatID = 1;
             using (Team36LMSContext db = new Team36LMSContext())
             {
@@ -259,7 +259,7 @@ namespace LMS.Controllers
                 }
 
 
-                var query2 = (from c in db.Classes
+                var query2 = (from c in db.Classes 
                               where c.Year == year && c.Season == season
                               join cou in db.Courses on c.CourseId equals cou.CourseId
                               where cou.Number == num && cou.Subject == subject
@@ -269,7 +269,7 @@ namespace LMS.Controllers
                               }).FirstOrDefault();
 
                 var assignmentCatIDs = (from ac in db.AssignmentCategories
-                                        select ac.Acid);
+                                     select ac.Acid);
                 List<int> list = new List<int>();
                 foreach (int ac in assignmentCatIDs)
                 {
@@ -468,7 +468,7 @@ namespace LMS.Controllers
                              where e.UId == uid
                              select e;
 
-                foreach (var i in query3)
+                foreach(var i in query3)
                 {
                     i.Grade = newOverallGrade.ToString();
                 }
@@ -477,6 +477,7 @@ namespace LMS.Controllers
 
                 return Json(new { success = true });
             }
+
         }
 
 
